@@ -6,7 +6,7 @@ import qualified Pure.Media.Library.Browser.Upload as Upload
 import qualified Pure.Media.Library.Data.Media as Media
 import qualified Pure.Media.Library.Data.Library as Library
 
-import Pure.Control.Sync
+import Pure.Sync
 import Pure.Data.Lifted (prevDef,prevProp)
 import Pure.Elm.Component hiding (not,step,select)
 import Pure.Intersection ( pattern RootMargin )
