@@ -34,7 +34,7 @@ library
     pure-sync,
     pure-time,
     pure-websocket,
-    sorcerer,
+    pure-sorcerer,
     directory,
     filepath,
     hashable
