@@ -6,7 +6,7 @@ import Pure.Media.Library.Data.Media (Media)
 import Pure.Data.Txt (Txt)
 import Pure.Data.JSON (ToJSON,FromJSON)
 
-import Sorcerer
+import Pure.Sorcerer
 
 import Data.Hashable (Hashable)
 

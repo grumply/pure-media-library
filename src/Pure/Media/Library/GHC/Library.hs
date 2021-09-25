@@ -9,7 +9,7 @@ import Pure.Data.Txt (Txt,FromTxt(..),ToTxt(..))
 import Pure.Data.Time (time)
 import Pure.WebSocket as WS
 import Pure.ReadFile (writeByteTxt)
-import Sorcerer
+import Pure.Sorcerer
 
 import System.FilePath (takeDirectory,(</>))
 import System.Directory (createDirectoryIfMissing,removeFile)
