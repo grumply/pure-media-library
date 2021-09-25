@@ -10,7 +10,7 @@ import Sorcerer
 
 import Data.Hashable (Hashable)
 
-import Data.List as List (filter,length)
+import Data.List as List (filter,length,elem,notElem)
 import GHC.Generics (Generic)
 
 data Library = Library
@@ -33,15 +33,11 @@ instance Aggregable LibraryMsg Library where
   update (CreateMedia m) Nothing =
     Update (Library [m])
 
-  update (CreateMedia m) (Just l) =
+  update (CreateMedia m) (Just l) | List.notElem m (library l) =
     Update l { library = library l ++ [m] }
 
-  update (DeleteMedia m) (Just ms) =
-    let l' = List.filter (/= m) (library ms)
-     in if List.length l' /= List.length (library ms) then
-          Update ms { library = l' }
-        else
-          Ignore
+  update (DeleteMedia m) (Just l) | List.elem m (library l) = 
+    Update l { library = List.filter (/= m) (library l) }
 
   update _ _ =
     Ignore

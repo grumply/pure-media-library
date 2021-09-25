@@ -1,26 +1,29 @@
-{-# language BlockArguments, NamedFieldPuns, PartialTypeSignatures #-}
+{-# language BlockArguments, NamedFieldPuns, PartialTypeSignatures, LambdaCase, ScopedTypeVariables #-}
 module Pure.Media.Library.GHC.Library (Config(..),library) where
 
 import Pure.Media.Library.API as API
 import Pure.Media.Library.Data.Library hiding (library)
 import Pure.Media.Library.Data.Media
 
-import Pure.Data.Txt (Txt,FromTxt(..))
+import Pure.Data.Txt (Txt,FromTxt(..),ToTxt(..))
 import Pure.Data.Time (time)
 import Pure.WebSocket as WS
 import Pure.ReadFile (writeByteTxt)
 import Sorcerer
 
-import System.FilePath (takeDirectory)
-import System.Directory (createDirectoryIfMissing)
+import System.FilePath (takeDirectory,(</>))
+import System.Directory (createDirectoryIfMissing,removeFile)
 
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Maybe (fromMaybe)
 import Prelude hiding (read)
 
+import Debug.Trace
+
 data Config = Config
-  { authorize :: Txt -> IO Bool
-  , validate :: File -> IO (Maybe Media)
+  { root      :: Txt
+  , authorize :: Txt -> IO Bool
+  , validate  :: File -> IO (Maybe Media)
   }
 
 library :: Config -> Endpoints _ _ _ _
@@ -29,6 +32,7 @@ library config = Endpoints API.api msgs reqs
     msgs = WS.none
     reqs = handleGetLibrary config
        <:> handleUpload config 
+       <:> handleDelete config
        <:> WS.none
 
 handleGetLibrary :: Config -> RequestHandler API.GetLibrary
@@ -42,15 +46,32 @@ handleGetLibrary Config { authorize } = responding do
     reply Nothing
 
 handleUpload :: Config -> RequestHandler API.Upload
-handleUpload Config { authorize, validate } = responding do
+handleUpload Config { root, authorize, validate } = responding do
   file <- acquire
-  now <- liftIO time
-  mm <- liftIO (validate file)
-  case mm of
-    Nothing -> reply Nothing
-    Just m -> do
-      liftIO do
-        createDirectoryIfMissing True (takeDirectory (fromTxt (path m)))
-        writeByteTxt (fromTxt (path m)) (snd file)
-        Sorcerer.write (LibraryStream (owner m)) (CreateMedia m)
-      reply (Just m)
+  liftIO (validate file) >>= \case
+    Just m ->
+      let fp = fromTxt root <> fromTxt (path m)
+      in
+        Sorcerer.transact (LibraryStream (owner m)) (CreateMedia m) >>= \case
+          Update (l :: Library) -> do
+            liftIO do 
+              createDirectoryIfMissing True (takeDirectory fp)
+              writeByteTxt fp (snd file)
+            reply (Just m)
+          _ -> 
+            reply Nothing
+    _ -> reply Nothing
+
+handleDelete :: Config -> RequestHandler API.Delete
+handleDelete Config { root, authorize, validate } = responding do
+  media <- acquire
+  authorized <- liftIO (authorize (owner media))
+  if authorized then do
+    Sorcerer.transact (LibraryStream (owner media)) (DeleteMedia media) >>= \case
+      Update (l :: Library) -> do
+        liftIO (removeFile (fromTxt root <> fromTxt (path media)))
+        reply True
+      _ -> 
+        reply False
+  else do
+    reply False

@@ -18,11 +18,9 @@ library
       Pure.Media.Library
     , Pure.Media.Library.API
     , Pure.Media.Library.Browser
-
-  other-modules:
-      Pure.Media.Library.Browser.Upload
     , Pure.Media.Library.Data.Library
     , Pure.Media.Library.Data.Media
+    , Pure.Media.Library.Browser.Upload
     
   build-depends:
     base,
@@ -33,6 +31,7 @@ library
     pure-lifted,
     pure-readfile,
     pure-stream,
+    pure-sync,
     pure-time,
     pure-websocket,
     sorcerer,
@@ -40,8 +39,8 @@ library
     filepath,
     hashable
 
-  if impl(ghcjs)
-    other-modules:
+  if !impl(ghcjs)
+    exposed-modules:
       Pure.Media.Library.GHC.Library
 
   hs-source-dirs:      src

@@ -12,8 +12,11 @@ mkRequest "GetLibrary"
 
 mkRequest "Upload" 
   [t|File -> Maybe Media|]
+  
+mkRequest "Delete"
+  [t|Media -> Bool|]
 
 api = WS.api msgs reqs
   where
     msgs = WS.none
-    reqs = getLibrary <:> upload <:> WS.none
+    reqs = getLibrary <:> upload <:> delete <:> WS.none
