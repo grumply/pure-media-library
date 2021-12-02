@@ -24,9 +24,9 @@ data LibraryMsg
   deriving stock Generic
   deriving anyclass (ToJSON,FromJSON)
 
-instance Source LibraryMsg where
+instance Streamable LibraryMsg where
   data Stream LibraryMsg = LibraryStream Txt
-    deriving stock Generic
+    deriving stock (Generic,Eq,Ord)
     deriving anyclass Hashable
 
 instance Aggregable LibraryMsg Library where
