@@ -1,4 +1,4 @@
-{-# language PatternSynonyms, LambdaCase, TypeApplications, PostfixOperators, BlockArguments, RecordWildCards, DataKinds, NamedFieldPuns, OverloadedStrings, TypeFamilies, RankNTypes, FlexibleContexts #-}
+{-# language PatternSynonyms, LambdaCase, TypeApplications, PostfixOperators, BlockArguments, RecordWildCards, DataKinds, NamedFieldPuns, OverloadedStrings, TypeFamilies, RankNTypes, FlexibleContexts, ScopedTypeVariables #-}
 module Pure.Media.Library.Browser (Browser(..),Renderer(..)) where
 
 import qualified Pure.Media.Library.API as API
@@ -17,26 +17,27 @@ import Prelude hiding (max,reverse)
 import Control.Monad (when)
 import Control.Concurrent (newEmptyMVar,putMVar,takeMVar)
 import qualified Data.List as List
+import Data.Typeable (Typeable)
 
-data Renderer = Renderer
+data Renderer domain = Renderer
   { refresh :: IO ()
-  , stream  :: S.Streamer Media.Media
+  , stream  :: S.Streamer (Media.Media domain)
   , form    :: View
   }
 
-data Browser = Browser 
+data Browser domain = Browser 
   { socket :: WebSocket
   , user   :: Txt
-  , render :: Renderer -> View
+  , render :: Renderer domain -> View
   }
 
-instance Component Browser where
-  data Model Browser = Model
+instance Typeable domain => Component (Browser domain) where
+  data Model (Browser domain) = Model
     { reload :: Bool }
     
   model = Model def
   
-  data Msg Browser = Refresh
+  data Msg (Browser domain) = Refresh
 
   upon = \case
     Refresh -> refreshBrowser
@@ -61,7 +62,7 @@ instance Component Browser where
               (m:rest) -> S.more m (Just rest)
 
           getLibrary Nothing =
-            sync (request API.api socket API.getLibrary user) >>= \case
+            sync (request (API.api @domain) socket (API.getLibrary @domain) user) >>= \case
               Just (Library.Library lib) -> getLibrary (Just (List.reverse lib))
               Nothing                    -> S.done
 
@@ -69,7 +70,7 @@ instance Component Browser where
       form = run Upload.Upload {..}
         where 
           onUpload f =
-            request API.api socket API.upload f $ \case
+            request (API.api @domain) socket (API.upload @domain) f $ \case
               -- Force the browser to reload the entire media stream. 
               -- Not especially efficient, but the browser cache does 
               -- a lot of the heavy lifting here.
@@ -77,5 +78,5 @@ instance Component Browser where
 
               _failure      -> pure ()
 
-refreshBrowser :: Update Browser
+refreshBrowser :: Update (Browser domain)
 refreshBrowser _ mdl = pure mdl { reload = not (reload mdl) }

@@ -11,25 +11,26 @@ import Pure.Sorcerer
 import Data.Hashable (Hashable)
 
 import Data.List as List (filter,length,elem,notElem)
+import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 
-data Library = Library
-  { library :: [Media]
+data Library domain = Library
+  { library :: [Media domain]
   } deriving stock Generic
     deriving anyclass (ToJSON,FromJSON)
 
-data LibraryMsg
-  = CreateMedia Media
-  | DeleteMedia Media
+data LibraryMsg domain
+  = CreateMedia (Media domain)
+  | DeleteMedia (Media domain)
   deriving stock Generic
   deriving anyclass (ToJSON,FromJSON)
 
-instance Streamable LibraryMsg where
-  data Stream LibraryMsg = LibraryStream Txt
+instance Typeable domain => Streamable (LibraryMsg domain) where
+  data Stream (LibraryMsg domain) = LibraryStream Txt
     deriving stock (Generic,Eq,Ord)
     deriving anyclass Hashable
 
-instance Aggregable LibraryMsg Library where
+instance Typeable domain => Aggregable (LibraryMsg domain) (Library domain) where
   update (CreateMedia m) Nothing =
     Update (Library [m])
 

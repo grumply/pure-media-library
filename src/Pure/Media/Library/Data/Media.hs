@@ -14,7 +14,7 @@ import GHC.Generics (Generic)
 type Link = Txt
 type File = (Txt,ByteTxt)
 
-data Media = Media
+data Media domain = Media
   { owner   :: Txt
   , created :: Time
   , hash    :: Txt
@@ -22,7 +22,7 @@ data Media = Media
   } deriving stock (Eq,Ord,Show,Generic)
     deriving anyclass (ToJSON,FromJSON)
 
-media :: Int -> Txt -> Time -> File -> Maybe Media
+media :: Int -> Txt -> Time -> File -> Maybe (Media domain)
 media maxFileSizeInBytes un tm (nm,cnt)
   | let c = unsafeByteTxtToTxt cnt
   , Txt.null c || Txt.length c > maxFileSizeInBytes
