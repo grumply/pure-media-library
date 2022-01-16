@@ -29,6 +29,7 @@ library
     pure-intersection,
     pure-json,
     pure-lifted,
+    pure-marker,
     pure-readfile,
     pure-stream,
     pure-sync,
