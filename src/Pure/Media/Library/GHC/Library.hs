@@ -1,12 +1,13 @@
-{-# language BlockArguments, NamedFieldPuns, PartialTypeSignatures, LambdaCase, ScopedTypeVariables, TypeApplications #-}
+{-# language BlockArguments, NamedFieldPuns, PartialTypeSignatures, LambdaCase, ScopedTypeVariables, TypeApplications, PatternSynonyms, OverloadedStrings #-}
 module Pure.Media.Library.GHC.Library (Config(..),library) where
 
 import Pure.Media.Library.API as API
 import Pure.Media.Library.Data.Library hiding (library)
 import Pure.Media.Library.Data.Media
 
+import qualified Pure.Bloom.Limiter as Limiter
 import Pure.Data.Txt (Txt,FromTxt(..),ToTxt(..))
-import Pure.Data.Time (time)
+import Pure.Data.Time (time,pattern Minutes)
 import Pure.WebSocket as WS
 import Pure.ReadFile (writeByteTxt)
 import Pure.Sorcerer as Sorcerer
@@ -34,6 +35,9 @@ library config = Endpoints (API.api @domain) msgs reqs
        <:> handleDelete config
        <:> WS.none
 
+allowed :: MonadIO m => Txt -> m Bool
+allowed un = liftIO (Limiter.allowed 20 "pure-media-library" un (Minutes 10 0))
+
 handleGetLibrary :: forall domain. Typeable domain => Config domain -> RequestHandler (API.GetLibrary domain)
 handleGetLibrary Config { authorize } = responding do
   un <- acquire
@@ -48,17 +52,21 @@ handleUpload :: forall domain. Typeable domain => Config domain -> RequestHandle
 handleUpload Config { root, authorize, validate } = responding do
   file <- acquire
   liftIO (validate file) >>= \case
-    Just m ->
-      let fp = fromTxt root <> fromTxt (path m)
-      in
-        Sorcerer.transact (LibraryStream @domain (owner m)) (CreateMedia m) >>= \case
-          Update (l :: Library domain) -> do
-            liftIO do 
-              createDirectoryIfMissing True (takeDirectory fp)
-              writeByteTxt fp (snd file)
-            reply (Just m)
-          _ -> 
-            reply Nothing
+    Just m -> do
+      allow <- allowed (owner m)
+      if allow then
+        let fp = fromTxt root <> fromTxt (path m)
+        in
+          Sorcerer.transact (LibraryStream @domain (owner m)) (CreateMedia m) >>= \case
+            Update (l :: Library domain) -> do
+              liftIO do 
+                createDirectoryIfMissing True (takeDirectory fp)
+                writeByteTxt fp (snd file)
+              reply (Just m)
+            _ -> 
+              reply Nothing
+      else
+        reply Nothing
     _ -> reply Nothing
 
 handleDelete :: forall domain. Typeable domain => Config domain -> RequestHandler (API.Delete domain)

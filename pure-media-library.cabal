@@ -24,6 +24,7 @@ library
     
   build-depends:
     base,
+    pure-bloom-limiter,
     pure-elm,
     pure-txt,
     pure-intersection,

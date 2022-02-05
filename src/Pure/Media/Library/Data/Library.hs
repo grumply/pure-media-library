@@ -1,17 +1,18 @@
-{-# language DeriveAnyClass, DerivingStrategies, MultiParamTypeClasses, TypeFamilies, DeriveGeneric #-}
+{-# language DeriveAnyClass, DerivingStrategies, MultiParamTypeClasses, TypeFamilies, DeriveGeneric, AllowAmbiguousTypes, TypeApplications, OverloadedStrings, ScopedTypeVariables #-}
 module Pure.Media.Library.Data.Library where
 
 import Pure.Media.Library.Data.Media (Media)
 
-import Pure.Data.Txt (Txt)
+import Pure.Data.Txt as Txt
 import Pure.Data.JSON (ToJSON,FromJSON)
 
 import Pure.Sorcerer
 
 import Data.Hashable (Hashable)
 
+import Data.Char
 import Data.List as List (filter,length,elem,notElem)
-import Data.Typeable (Typeable)
+import Data.Typeable
 import GHC.Generics (Generic)
 
 data Library domain = Library
@@ -29,6 +30,9 @@ instance Typeable domain => Streamable (LibraryMsg domain) where
   data Stream (LibraryMsg domain) = LibraryStream Txt
     deriving stock (Generic,Eq,Ord)
     deriving anyclass Hashable
+    
+  stream (LibraryStream lib) =
+    fromTxt ("media/" <> rep @domain <> "/" <> lib <> ".stream")
 
 instance Typeable domain => Aggregable (LibraryMsg domain) (Library domain) where
   update (CreateMedia m) Nothing =
@@ -43,3 +47,14 @@ instance Typeable domain => Aggregable (LibraryMsg domain) (Library domain) wher
   update _ _ =
     Ignore
 
+  aggregate =
+    "library.aggregate"
+
+rep :: forall p. (Typeable p) => Txt
+rep = Txt.map limit $ go (typeRep (Proxy :: Proxy p))
+  where
+    limit c | isAscii c && isAlphaNum c = c | otherwise = '_'
+    go tr =
+      let tc = toTxt (show (typeRepTyCon tr))
+          trs = typeRepArgs tr
+      in Txt.intercalate "_" (tc : fmap go trs)
