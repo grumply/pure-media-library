@@ -45,7 +45,7 @@ instance Typeable domain => Component (Browser domain) where
   view Browser { socket, user, render } Model { reload } = 
     (if reload then Tagged @True else Tagged @False)
       (render Renderer
-        { refresh = command Refresh
+        { refresh = command (Refresh @domain)
         , stream = media 
         , form = form
         }
@@ -74,7 +74,7 @@ instance Typeable domain => Component (Browser domain) where
               -- Force the browser to reload the entire media stream. 
               -- Not especially efficient, but the browser cache does 
               -- a lot of the heavy lifting here.
-              Just _success -> command Refresh 
+              Just _success -> command (Refresh @domain)
 
               _failure      -> pure ()
 
