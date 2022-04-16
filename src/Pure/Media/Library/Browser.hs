@@ -1,15 +1,16 @@
-{-# language PatternSynonyms, LambdaCase, TypeApplications, PostfixOperators, BlockArguments, RecordWildCards, DataKinds, NamedFieldPuns, OverloadedStrings, TypeFamilies, RankNTypes, FlexibleContexts, ScopedTypeVariables #-}
+{-# language PatternSynonyms, LambdaCase, TypeApplications, PostfixOperators, BlockArguments, RecordWildCards, DataKinds, NamedFieldPuns, OverloadedStrings, TypeFamilies, RankNTypes, FlexibleContexts, ScopedTypeVariables, ViewPatterns #-}
 module Pure.Media.Library.Browser (Browser(..),Renderer(..)) where
 
 import qualified Pure.Media.Library.API as API
-import qualified Pure.Media.Library.Browser.Upload as Upload
 import qualified Pure.Media.Library.Data.Media as Media
 import qualified Pure.Media.Library.Data.Library as Library
 
 import Pure.Sync
 import Pure.Data.Lifted (prevDef,prevProp)
+import Pure.Data.Lifted as Lifted (Node(Node),(..#))
 import Pure.Elm.Component hiding (not,step,select)
 import Pure.Intersection ( pattern RootMargin )
+import Pure.ReadFile as ReadFile (ByteTxt,getFile )
 import qualified Pure.Stream as S
 import Pure.WebSocket as WS
 
@@ -22,7 +23,7 @@ import Data.Typeable (Typeable)
 data Renderer domain = Renderer
   { refresh :: IO ()
   , stream  :: S.Streamer (Media.Media domain)
-  , form    :: View
+  , input   :: View
   }
 
 data Browser domain = Browser 
@@ -47,7 +48,7 @@ instance Typeable domain => Component (Browser domain) where
       (render Renderer
         { refresh = command (Refresh @domain)
         , stream = media 
-        , form = form
+        , input = input
         }
       )
     where
@@ -66,9 +67,19 @@ instance Typeable domain => Component (Browser domain) where
               Just (Library.Library lib) -> getLibrary (Just (List.reverse lib))
               Nothing                    -> S.done
 
+      input = Input <| OnClickWith clickOptions clickHandler . OnChange select . Type "file" . Accept "image/*"
+        where
+          clickOptions = Options False True False True
+          clickHandler ev = pure ()
 
-      form = run Upload.Upload {..}
-        where 
+          select ev = do
+            evtObj ev ..# "target" >>= \case
+              Just (Lifted.Node -> target) -> 
+                ReadFile.getFile target >>= \case 
+                  Just file -> onUpload file
+                  failure   -> pure ()
+              failure       -> pure ()
+
           onUpload f =
             request (API.api @domain) socket (API.upload @domain) f $ \case
               -- Force the browser to reload the entire media stream. 
